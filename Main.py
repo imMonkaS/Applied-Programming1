@@ -128,6 +128,7 @@ What are you gonna do next, {self.character.name}?
             self.menu("Your current status: " + self.character.status())
         elif command == '4':
             self.character.heal()
+            self.menu("You have been healed!")
         elif command == '5':
             self.mobs.append(Mob())
             self.menu()
