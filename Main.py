@@ -1,20 +1,33 @@
 import os
+import json
 
 
-def save_character_to_json(self, character, filename):
-    pass
+def load_data_from_json(filename):
+    with open(filename) as file:
+        data = json.load(file)
+
+    return data
 
 
-def load_character_from_json(self, filename):
-    pass
+def save_data_to_json(data, filename):
+    with open(filename, 'w') as out:
+        json.dump(data, out)
 
 
-def save_character_to_xml(self, character, filename):
-    pass
-
-
-def load_character_from_xml(self, filename):
-    pass
+# def save_character_to_json(self, character, filename):
+#     pass
+#
+#
+# def load_character_from_json(self, filename):
+#     pass
+#
+#
+# def save_character_to_xml(self, character, filename):
+#     pass
+#
+#
+# def load_character_from_xml(self, filename):
+#     pass
 
 
 class Character:
@@ -41,7 +54,7 @@ class MC(Character):
     def __init__(self, _name, _hp=100, _damage=20, _kill_counter=0):
         super().__init__(_hp, _damage)
         self.name = _name
-        self.kills_counter = _kill_counter
+        self.kill_counter = _kill_counter
 
     def heal(self):
         self.hp += 20
@@ -65,10 +78,65 @@ class Game:
         self.character = None
         self.mobs = []
 
+    def save_character_menu(self, filename):
+        data = load_data_from_json(filename)
+        mobs = {}
+        for i in range(len(self.mobs)):
+            mobs[f'mob{i + 1}'] = {
+                'hp': self.mobs[i].hp,
+                'damage': self.mobs[i].damage
+            }
+        while self.character.name in data['characters'].keys():
+            print("You already have a saved character with that name, make a new name for your character:")
+            self.character.name = input()
+
+        data['characters'][self.character.name] = {
+            "hp": self.character.hp,
+            "damage": self.character.damage,
+            "alive": self.character.alive,
+            "mobs_spawned": mobs,
+            "kill_counter": self.character.kill_counter
+        }
+
+        save_data_to_json(data, filename)
+        self.menu("Your character has been saved")
+
+    def load_character_menu(self, from_loaded_game=False):
+        print("Choose your character:")
+
+        data = load_data_from_json("characters.json")
+        characters = [key for key in data['characters'].keys()]
+        for i in range(len(characters)):
+            print(f"{i + 1}. {characters[i]}")
+
+        if from_loaded_game:
+            print("q. Go back to main menu")
+        else:
+            print("q. Back to start")
+
+
+        command = input()
+        if command.isdigit() and (1 <= int(command) <= len(characters)):
+            chosen_char = data['characters'][characters[int(command) - 1]]
+            self.character = MC(
+                characters[int(command) - 1],
+                chosen_char['hp'],
+                chosen_char['damage'],
+                chosen_char['kill_counter']
+            )
+            self.mobs = [Mob(chosen_char['mobs_spawned'][k]['hp'],
+                             chosen_char['mobs_spawned'][k]['damage']) for k in chosen_char['mobs_spawned'].keys()]
+            self.menu()
+        elif command.upper() == 'Q':
+            if from_loaded_game:
+                self.menu()
+            else:
+                self.start()
+
     def start(self):
         print("Do you want to load your character? (Y/N)")
         if input().upper() == 'Y':
-            pass
+            self.load_character_menu()
         else:
             _name = input("Enter your character's name:\n")
             self.character = MC(_name)
@@ -87,6 +155,7 @@ class Game:
                     self.character.attack(enemy)
                     if not enemy.alive:
                         del self.mobs[index]
+                        self.character.kill_counter += 1
                         self.menu(f"Congratulations, {self.character.name}! You killed it.")
                     turn += 1
                 elif command == '2':
@@ -95,6 +164,16 @@ class Game:
                 enemy.attack(self.character)
                 turn += 1
 
+    def delete_current_character(self):
+        data = load_data_from_json('characters.json')
+        print(f'Are you sure you want to delete your character, "{self.character.name}"? (Y/N)')
+        command = input()
+        if command.upper() == "Y":
+            del data['characters'][self.character.name]
+            save_data_to_json(data, 'characters.json')
+        os.system('cls')
+        print("Your character has been wiped out.")
+        self.start()
 
     def fight_menu(self):
         print("Choose mob to fight with:")
@@ -118,25 +197,37 @@ What are you gonna do next, {self.character.name}?
 5. Spawn mob""")
         if len(self.mobs) != 0:
             print("6. Fight")
+        print("DEL. Delete my character")
         print("q. Exit game")
+
         command = input()
+
         if command == '1':
-            pass
+            self.load_character_menu()
+
         elif command == '2':
-            pass
+            self.save_character_menu("characters.json")
+
         elif command == '3':
             self.menu("Your current status: " + self.character.status())
+
         elif command == '4':
             self.character.heal()
             self.menu("You have been healed!")
+
         elif command == '5':
             self.mobs.append(Mob())
             self.menu()
 
         elif command == '6' and len(self.mobs) != 0:
             self.fight_menu()
+
+        elif command == 'DEL':
+            self.delete_current_character()
+
         elif command == 'q':
             exit()
+
         else:
             self.menu()
 
