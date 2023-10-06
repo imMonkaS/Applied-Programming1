@@ -121,7 +121,6 @@ class Game:
         data = load_data_from_json("characters.json")
         characters = [key for key in data['characters'].keys()]
 
-        command = ""
         while True:
             print("Choose your character:")
 
@@ -157,7 +156,13 @@ class Game:
                 self.start()
 
     def start(self):
-        command = ""
+        try:
+            with open('characters.json'):
+                pass
+        except FileNotFoundError:
+            with open('characters.json', 'w') as file:
+                file.write('{"characters": {}}')
+
         while True:
             print("Do you want to load your character? (Y/N)")
             command = input()
@@ -231,7 +236,6 @@ class Game:
         print("Choose mob to fight with:")
         for el in range(len(self.mobs)):
             print(f"Mob #{el + 1}. Enemy status: " + self.mobs[el].status())
-        command = ""
         while True:
             command = input()
             if command.isdigit() and (1 <= int(command) <= len(self.mobs)):
