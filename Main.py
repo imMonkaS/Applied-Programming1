@@ -251,7 +251,7 @@ class Game:
                 self.menu("You can not delete character, that you didn't saved once.")
 
             save_data_to_json(data, 'characters.json')
-            os.system('cls')
+            # os.system('cls')
             print("Your character has been wiped out.")
             self.start()
         self.menu()
@@ -269,7 +269,7 @@ class Game:
         self.fight(self.__mobs[int(command) - 1], int(command) - 1)
 
     def menu(self, pre_text=""):
-        os.system('cls')
+        # os.system('cls')
         print(pre_text)
         print(f"""\
 What are you gonna do next, {self.__character.name()}?

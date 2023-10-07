@@ -16,6 +16,8 @@
 .ideaaws.xml
 
 .idea/workspace.xml
+.idea/CharClass.iml
+.idea/misc.xml
 
 # Generated files
 .ideacontentModel.xml
