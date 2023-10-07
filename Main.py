@@ -247,8 +247,8 @@ class Game:
             try:
                 del data['characters'][self.__character.name()]
             except KeyError:
-                self.menu("You can not delete character, that you didn't saved once.")
                 # raise DeleteCharacterError("You can not delete character, that you didn't save once.")
+                self.menu("You can not delete character, that you didn't saved once.")
 
             save_data_to_json(data, 'characters.json')
             os.system('cls')
