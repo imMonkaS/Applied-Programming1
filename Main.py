@@ -1,4 +1,3 @@
-import os
 import json
 
 
@@ -20,16 +19,15 @@ def save_data_to_json(data, filename):
         raise
 
 
-class DeleteCharacterError(Exception):
-    def __init__(self, *args):
-        if args:
-            self.message = args[0]
-        else:
-            self.message = None
+class WrongNameException(Exception):
+    # Raise when name is not typed correctly
+    pass
 
-    def __str__(self):
-        if self.message:
-            return self.message
+
+class TooManyAttemptsException(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 
 class Character:
@@ -193,13 +191,25 @@ class Game:
             self.load_character_menu()
         else:
             data = load_data_from_json('characters.json')
+            attempts = 0
             while True:
-                _name = input("Enter your character's name:\n")
-                if "  " not in _name and 3 <= len(_name) <= 16 and _name not in data["characters"].keys():
-                    break
-                else:
-                    print("You did something wrong: either your character's name have too more spaces or\
- it's too long, or you already have a saved character with this name. Try again.")
+                try:
+                    _name = input("Enter your character's name (3-30 symbols, no multiple spaces in a row)\n")
+                    if "  " not in _name and 3 <= len(_name) <= 30 and _name not in data["characters"].keys():
+                        break
+                    else:
+                        raise WrongNameException()
+                except WrongNameException:
+                    print("You did something wrong: either your character's name have too many spaces or \
+it's too long, or you already have a saved character with this name. Try again.")
+                    if attempts == 8:
+                        raise TooManyAttemptsException("This game is just not for you, i guess...")
+                attempts += 1
+
+            if _name[0] == " ":
+                _name = _name[1:]
+            elif _name[-1] == " ":
+                _name = _name[:-1]
 
             self.__character = MC(_name)
         self.menu()
@@ -251,7 +261,6 @@ class Game:
                 self.menu("You can not delete character, that you didn't saved once.")
 
             save_data_to_json(data, 'characters.json')
-            # os.system('cls')
             print("Your character has been wiped out.")
             self.start()
         self.menu()
@@ -269,7 +278,6 @@ class Game:
         self.fight(self.__mobs[int(command) - 1], int(command) - 1)
 
     def menu(self, pre_text=""):
-        # os.system('cls')
         print(pre_text)
         print(f"""\
 What are you gonna do next, {self.__character.name()}?
