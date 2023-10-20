@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 
 
 def load_data_from_json(filename):
@@ -109,29 +110,56 @@ class Game:
         self.__character = None
         self.__mobs = []
 
-    def save_character_menu(self, filename):
-        data = load_data_from_json(filename)
-        mobs = {}
-        for i in range(len(self.__mobs)):
-            mobs[f'mob{i + 1}'] = {
-                'hp': self.__mobs[i].hp(),
-                'damage': self.__mobs[i].damage()
-            }
+    def save_char_to_xml_file(self):
+        tree = ET.parse('characters.xml')
+        root = tree.getroot()
+        char = root.find('characters').find(self.__character.name())
+        if char is not None:  # if character has already been saved
+            char.find('hp').text = str(self.__character.hp())
+            char.find('damage').text = str(self.__character.damage())
+            char.find('alive').text = str(self.__character.alive())
+            char.find('kill_counter').text = str(self.__character.kill_counter())
 
-        data['characters'][self.__character.name()] = {
-            "hp": self.__character.hp(),
-            "damage": self.__character.damage(),
-            "alive": self.__character.alive(),
-            "mobs_spawned": mobs,
-            "kill_counter": self.__character.kill_counter()
-        }
+            mobs = char.find('mobs_spawned')
+            # obj = root.find('characters').find("dan").find('mobs_spawned')
+            for sub_element in [mob for mob in mobs.iter() if 'mob' in mob.tag and '_' not in mob.tag]:
+                mobs.remove(sub_element)
 
-        save_data_to_json(data, filename)
+            for i in range(len(self.__mobs)):
+                ET.SubElement(mobs, f"mob{i + 1}")
+                ET.SubElement(mobs.find(f"mob{i + 1}"), 'hp')
+                ET.SubElement(mobs.find(f"mob{i + 1}"), 'damage')
+                mobs.find(f"mob{i + 1}").find('hp').text = str(self.__mobs[i].hp())
+                mobs.find(f"mob{i + 1}").find('damage').text = str(self.__mobs[i].damage())
+        else:
+            ET.SubElement(root.find('characters'), self.__character.name())
+            new_character = root.find('characters').find(self.__character.name())
+            hp = ET.SubElement(new_character, 'hp')
+            hp.text = str(self.__character.hp())
+
+            hp = ET.SubElement(new_character, 'damage')
+            hp.text = str(self.__character.damage())
+
+            hp = ET.SubElement(new_character, 'alive')
+            hp.text = str(self.__character.alive())
+
+            hp = ET.SubElement(new_character, 'kill_counter')
+            hp.text = str(self.__character.kill_counter())
+
+            mobs_spawned = ET.SubElement(new_character, 'mobs_spawned')
+            for i in range(len(self.__mobs)):
+                ET.SubElement(mobs_spawned, f"mob{i + 1}")
+                ET.SubElement(mobs_spawned.find(f"mob{i + 1}"), 'hp')
+                ET.SubElement(mobs_spawned.find(f"mob{i + 1}"), 'damage')
+                mobs_spawned.find(f"mob{i + 1}").find('hp').text = str(self.__mobs[i].hp)
+                mobs_spawned.find(f"mob{i + 1}").find('damage').text = str(self.__mobs[i].damage)
+
+        tree.write('characters.xml')
         self.menu("Your character has been saved")
 
-    def load_character_menu(self, from_loaded_game=False):
-        data = load_data_from_json("characters.json")
-        characters = [key for key in data['characters'].keys()]
+    def load_character_menu_for_xml(self, from_loaded_game=False):
+        tree = ET.parse('characters.xml')
+        characters = [char.tag for char in tree.getroot().find('characters')]
 
         while True:
             print("Choose your character:")
@@ -154,15 +182,8 @@ class Game:
                 print('Something went wrong. Try again')
 
         if command.isdigit():
-            chosen_char = data['characters'][characters[int(command) - 1]]
-            self.__character = MC(
-                characters[int(command) - 1],
-                chosen_char['hp'],
-                chosen_char['damage'],
-                chosen_char['kill_counter']
-            )
-            self.__mobs = [Mob(chosen_char['mobs_spawned'][k]['hp'],
-                               chosen_char['mobs_spawned'][k]['damage']) for k in chosen_char['mobs_spawned'].keys()]
+            self.load_char_from_xml_file(tree, characters[int(command) - 1])
+
             self.menu()
 
         elif command.upper() == 'Q':
@@ -170,6 +191,23 @@ class Game:
                 self.menu()
             else:
                 self.start()
+
+    def load_char_from_xml_file(self, tree, name):
+        root = tree.getroot()
+        char = root.find('characters').find(name)
+        self.__character = MC(
+            name,
+            int(char.find('hp').text),
+            int(char.find('damage').text),
+            int(char.find('kill_counter').text),
+        )
+        self.__character._alive = bool(char.find('alive').text)
+        mobs = char.find('mobs_spawned')
+        for m in [mob for mob in mobs.iter() if 'mob' in mob.tag and '_' not in mob.tag]:
+            self.__mobs.append(Mob(
+                int(m.find('hp').text),
+                int(m.find('damage').text)
+            ))
 
     def start(self):
         try:
@@ -188,7 +226,7 @@ class Game:
                 print("Something went wrong. Try again.")
 
         if command.upper() == 'Y':
-            self.load_character_menu()
+            self.load_character_menu_for_xml()
         else:
             data = load_data_from_json('characters.json')
             attempts = 0
@@ -243,8 +281,11 @@ it's too long, or you already have a saved character with this name. Try again."
 
             turn += 1
 
-    def delete_current_character(self):
-        data = load_data_from_json('characters.json')
+    def delete_current_character_from_xml(self):
+        tree = ET.parse('characters.xml')
+        root = tree.getroot()
+        char = root.find('characters')
+
         while True:
             print(f'Are you sure you want to delete your character, "{self.__character.name()}"? (Y/N)')
             command = input()
@@ -254,13 +295,12 @@ it's too long, or you already have a saved character with this name. Try again."
                 print("Something went wrong. Try again")
 
         if command.upper() == "Y":
-            try:
-                del data['characters'][self.__character.name()]
-            except KeyError:
-                # raise DeleteCharacterError("You can not delete character, that you didn't save once.")
+            if char.find(self.__character.name()) is not None:
+                char.remove(char.find(self.__character.name()))
+            else:
                 self.menu("You can not delete character, that you didn't saved once.")
 
-            save_data_to_json(data, 'characters.json')
+            tree.write('characters.xml')
             print("Your character has been wiped out.")
             self.start()
         self.menu()
@@ -294,10 +334,10 @@ What are you gonna do next, {self.__character.name()}?
         command = input()
 
         if command == '1':
-            self.load_character_menu(True)
+            self.load_character_menu_for_xml(True)
 
         elif command == '2':
-            self.save_character_menu("characters.json")
+            self.save_char_to_xml_file()
 
         elif command == '3':
             self.menu("Your current status: " + self.__character.status() +
@@ -317,7 +357,7 @@ What are you gonna do next, {self.__character.name()}?
             self.fight_menu()
 
         elif command == 'DEL':
-            self.delete_current_character()
+            self.delete_current_character_from_xml()
 
         elif command == 'q':
             exit()
